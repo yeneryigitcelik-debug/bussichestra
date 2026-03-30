@@ -1,0 +1,765 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// NextAuth.js Required Tables
+// ============================================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================================
+// 1. Organizations (tenants)
+// ============================================================
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("starter")
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  users              User[]
+  departments        Department[]
+  workers            AiWorker[]
+  conversations      Conversation[]
+  customers          Customer[]
+  transactions       Transaction[]
+  invoices           Invoice[]
+  products           Product[]
+  documents          Document[]
+  notifications      Notification[]
+  activityLogs       ActivityLog[]
+  workerKnowledge    WorkerKnowledge[]
+  workerMessages     WorkerMessage[]
+  workerTasks        WorkerTask[]
+  emailAccounts      EmailAccount[]
+  emailMessages      EmailMessage[]
+  projects           Project[]
+  projectTasks       ProjectTask[]
+  approvalRequests   ApprovalRequest[]
+  tags               Tag[]
+  recurringSchedules RecurringSchedule[]
+
+  @@map("organizations")
+}
+
+// ============================================================
+// 2. Users (human operators)
+// ============================================================
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  emailVerified  DateTime? @map("email_verified")
+  name           String?   @map("full_name")
+  hashedPassword String?   @map("hashed_password")
+  image          String?
+  role           String    @default("member") // owner | admin | member
+  orgId          String?   @map("org_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization    Organization?     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  accounts        Account[]
+  sessions        Session[]
+  conversations   Conversation[]
+  notifications   Notification[]
+  documents       Document[]
+  projectTasks    ProjectTask[]     @relation("TaskAssignedUser")
+  approvalsMade   ApprovalRequest[] @relation("ApprovalDecider")
+
+  @@index([orgId])
+  @@map("users")
+}
+
+// ============================================================
+// 3. Departments
+// ============================================================
+
+model Department {
+  id          String   @id @default(cuid())
+  orgId       String   @map("org_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  workers      AiWorker[]
+
+  @@index([orgId])
+  @@map("departments")
+}
+
+// ============================================================
+// 4. AI Workers
+// ============================================================
+
+model AiWorker {
+  id           String   @id @default(cuid())
+  orgId        String   @map("org_id")
+  departmentId String?  @map("department_id")
+  name         String
+  role         String
+  persona      String   @db.Text
+  avatarUrl    String?  @map("avatar_url")
+  email        String?
+  status       String   @default("active") // active | idle | stuck | offline
+  tools        Json     @default("[]")
+  settings     Json     @default("{}")
+  language     String   @default("en")
+  isManager    Boolean  @default(false) @map("is_manager")
+  model        String   @default("claude-sonnet-4-20250514")
+  maxTokens    Int      @default(4096) @map("max_tokens")
+  temperature  Float    @default(0.7)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  organization       Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  department         Department?          @relation(fields: [departmentId], references: [id])
+  conversations      Conversation[]
+  heartbeats         WorkerHeartbeat[]
+  knowledge          WorkerKnowledge[]
+  sentMessages       WorkerMessage[]      @relation("MessageSender")
+  receivedMessages   WorkerMessage[]      @relation("MessageReceiver")
+  tasks              WorkerTask[]
+  emailAccounts      EmailAccount[]
+  emailMessages      EmailMessage[]
+  assignedCustomers  Customer[]           @relation("CustomerAssignedWorker")
+  createdInvoices    Invoice[]            @relation("InvoiceCreator")
+  ownedProjects      Project[]
+  assignedTasks      ProjectTask[]        @relation("TaskAssignedWorker")
+  linkedDocuments    Document[]           @relation("DocumentLinkedWorker")
+  sourceNotifications Notification[]
+  recurringSchedules RecurringSchedule[]
+
+  @@index([orgId])
+  @@index([orgId, status])
+  @@map("ai_workers")
+}
+
+// ============================================================
+// 5. Worker Heartbeats
+// ============================================================
+
+model WorkerHeartbeat {
+  id        String   @id @default(cuid())
+  workerId  String   @map("worker_id")
+  status    String
+  load      Float    @default(0)
+  lastTask  String?  @map("last_task")
+  checkedAt DateTime @default(now()) @map("checked_at")
+
+  worker AiWorker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId, checkedAt(sort: Desc)])
+  @@map("worker_heartbeats")
+}
+
+// ============================================================
+// 6. Worker Knowledge (persistent memory)
+// ============================================================
+
+model WorkerKnowledge {
+  id         String    @id @default(cuid())
+  workerId   String    @map("worker_id")
+  orgId      String    @map("org_id")
+  category   String    // fact | preference | learning | context | procedure
+  content    String    @db.Text
+  source     String?   // conversation | manual | observation
+  importance Int       @default(5)
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  worker       AiWorker     @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([workerId, category])
+  @@map("worker_knowledge")
+}
+
+// ============================================================
+// 7. Worker Messages (inter-worker communication)
+// ============================================================
+
+model WorkerMessage {
+  id           String   @id @default(cuid())
+  orgId        String   @map("org_id")
+  fromWorkerId String   @map("from_worker_id")
+  toWorkerId   String   @map("to_worker_id")
+  subject      String?
+  content      String   @db.Text
+  context      Json     @default("{}")
+  status       String   @default("pending") // pending | read | responded
+  parentId     String?  @map("parent_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  fromWorker   AiWorker      @relation("MessageSender", fields: [fromWorkerId], references: [id], onDelete: Cascade)
+  toWorker     AiWorker      @relation("MessageReceiver", fields: [toWorkerId], references: [id], onDelete: Cascade)
+  parent       WorkerMessage? @relation("MessageThread", fields: [parentId], references: [id])
+  replies      WorkerMessage[] @relation("MessageThread")
+
+  @@index([toWorkerId, status])
+  @@index([fromWorkerId, createdAt(sort: Desc)])
+  @@map("worker_messages")
+}
+
+// ============================================================
+// 8. Worker Tasks (async queue)
+// ============================================================
+
+model WorkerTask {
+  id           String    @id @default(cuid())
+  workerId     String    @map("worker_id")
+  orgId        String    @map("org_id")
+  type         String
+  status       String    @default("pending") // pending | running | completed | failed
+  priority     String    @default("medium")  // low | medium | high | urgent
+  input        Json      @default("{}")
+  result       Json?
+  assignedBy   String?   @map("assigned_by")    // user | worker | system | pipeline
+  assignedById String?   @map("assigned_by_id")
+  retryCount   Int       @default(0) @map("retry_count")
+  maxRetries   Int       @default(3) @map("max_retries")
+  errorMessage String?   @map("error_message")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  completedAt  DateTime? @map("completed_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  worker       AiWorker     @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([workerId, status])
+  @@map("worker_tasks")
+}
+
+// ============================================================
+// 9. Conversations
+// ============================================================
+
+model Conversation {
+  id           String   @id @default(cuid())
+  orgId        String   @map("org_id")
+  workerId     String   @map("worker_id")
+  userId       String?  @map("user_id")
+  title        String?
+  status       String   @default("active") // active | archived | deleted
+  isPinned     Boolean  @default(false) @map("is_pinned")
+  summary      String?
+  messageCount Int      @default(0) @map("message_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  worker       AiWorker     @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id])
+  messages     Message[]
+
+  @@index([workerId, updatedAt(sort: Desc)])
+  @@map("conversations")
+}
+
+// ============================================================
+// 10. Messages
+// ============================================================
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  role           String   // user | assistant | system | tool
+  content        String   @db.Text
+  toolCalls      Json?    @map("tool_calls")
+  toolResults    Json?    @map("tool_results")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// ============================================================
+// 11. Customers (CRM)
+// ============================================================
+
+model Customer {
+  id               String    @id @default(cuid())
+  orgId            String    @map("org_id")
+  name             String
+  email            String?
+  phone            String?
+  company          String?
+  stage            String    @default("lead") // lead | prospect | customer | churned
+  notes            String?   @db.Text
+  address          String?
+  city             String?
+  country          String?
+  website          String?
+  source           String    @default("manual")
+  assignedWorkerId String?   @map("assigned_worker_id")
+  lifetimeValue    Decimal   @default(0) @map("lifetime_value") @db.Decimal(12, 2)
+  lastContactAt    DateTime? @map("last_contact_at")
+  tags             String[]  @default([])
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  organization   Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  assignedWorker AiWorker?     @relation("CustomerAssignedWorker", fields: [assignedWorkerId], references: [id])
+  transactions   Transaction[]
+  invoices       Invoice[]
+  projects       Project[]
+  emailMessages  EmailMessage[]
+  documents      Document[]    @relation("DocumentLinkedCustomer")
+
+  @@index([orgId])
+  @@index([orgId, stage])
+  @@index([assignedWorkerId])
+  @@map("customers")
+}
+
+// ============================================================
+// 12. Transactions (Finance)
+// ============================================================
+
+model Transaction {
+  id              String    @id @default(cuid())
+  orgId           String    @map("org_id")
+  type            String    // income | expense
+  category        String?
+  amount          Decimal   @db.Decimal(12, 2)
+  currency        String    @default("USD")
+  description     String?
+  customerId      String?   @map("customer_id")
+  invoiceId       String?   @map("invoice_id")
+  paymentMethod   String?   @map("payment_method")
+  referenceNumber String?   @map("reference_number")
+  isRecurring     Boolean   @default(false) @map("is_recurring")
+  approvedBy      String?   @map("approved_by")
+  date            DateTime  @default(now()) @db.Date
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customer     Customer?    @relation(fields: [customerId], references: [id])
+  invoice      Invoice?     @relation(fields: [invoiceId], references: [id])
+
+  @@index([orgId, date(sort: Desc)])
+  @@map("transactions")
+}
+
+// ============================================================
+// 13. Invoices
+// ============================================================
+
+model Invoice {
+  id              String    @id @default(cuid())
+  orgId           String    @map("org_id")
+  customerId      String?   @map("customer_id")
+  invoiceNumber   String    @map("invoice_number")
+  type            String    @default("invoice") // invoice | quote | credit_note | receipt
+  status          String    @default("draft")   // draft | sent | paid | overdue | cancelled
+  currency        String    @default("USD")
+  subtotal        Decimal   @default(0) @db.Decimal(12, 2)
+  taxRate         Decimal   @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal   @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  discountAmount  Decimal   @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  total           Decimal   @default(0) @db.Decimal(12, 2)
+  notes           String?   @db.Text
+  dueDate         DateTime? @map("due_date") @db.Date
+  paidAt          DateTime? @map("paid_at")
+  sentAt          DateTime? @map("sent_at")
+  createdBy       String?   @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customer     Customer?     @relation(fields: [customerId], references: [id])
+  creator      AiWorker?     @relation("InvoiceCreator", fields: [createdBy], references: [id])
+  items        InvoiceItem[]
+  transactions Transaction[]
+  emailMessages EmailMessage[]
+
+  @@index([orgId, status])
+  @@index([customerId])
+  @@index([orgId, invoiceNumber])
+  @@map("invoices")
+}
+
+// ============================================================
+// 14. Invoice Items
+// ============================================================
+
+model InvoiceItem {
+  id        String   @id @default(cuid())
+  invoiceId String   @map("invoice_id")
+  productId String?  @map("product_id")
+  description String
+  quantity  Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice Decimal  @map("unit_price") @db.Decimal(10, 2)
+  taxRate   Decimal  @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  total     Decimal  @db.Decimal(12, 2)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+// ============================================================
+// 15. Products (Inventory)
+// ============================================================
+
+model Product {
+  id          String   @id @default(cuid())
+  orgId       String   @map("org_id")
+  name        String
+  sku         String?
+  description String?  @db.Text
+  category    String?
+  quantity    Int      @default(0)
+  reorderAt   Int      @default(10) @map("reorder_at")
+  price       Decimal? @db.Decimal(10, 2)
+  costPrice   Decimal? @map("cost_price") @db.Decimal(10, 2)
+  unit        String   @default("piece")
+  supplier    String?
+  barcode     String?
+  location    String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invoiceItems InvoiceItem[]
+
+  @@index([orgId])
+  @@map("products")
+}
+
+// ============================================================
+// 16. Documents
+// ============================================================
+
+model Document {
+  id               String   @id @default(cuid())
+  orgId            String   @map("org_id")
+  name             String
+  type             String   // contract | proposal | report | policy | template | other
+  mimeType         String?  @map("mime_type")
+  fileUrl          String?  @map("file_url")
+  fileSize         Int?     @map("file_size")
+  description      String?  @db.Text
+  tags             String[] @default([])
+  folder           String   @default("/")
+  uploadedBy       String?  @map("uploaded_by")
+  linkedCustomerId String?  @map("linked_customer_id")
+  linkedWorkerId   String?  @map("linked_worker_id")
+  isTemplate       Boolean  @default(false) @map("is_template")
+  version          Int      @default(1)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  uploader      User?        @relation(fields: [uploadedBy], references: [id])
+  linkedCustomer Customer?   @relation("DocumentLinkedCustomer", fields: [linkedCustomerId], references: [id])
+  linkedWorker  AiWorker?    @relation("DocumentLinkedWorker", fields: [linkedWorkerId], references: [id])
+
+  @@index([orgId, type])
+  @@index([orgId, folder])
+  @@map("documents")
+}
+
+// ============================================================
+// 17. Email Accounts
+// ============================================================
+
+model EmailAccount {
+  id           String    @id @default(cuid())
+  orgId        String    @map("org_id")
+  workerId     String    @map("worker_id")
+  emailAddress String    @map("email_address")
+  displayName  String?   @map("display_name")
+  provider     String    @default("gmail") // gmail | outlook | smtp
+  credentials  Json      @default("{}") // encrypted OAuth tokens
+  isActive     Boolean   @default(true) @map("is_active")
+  lastSyncedAt DateTime? @map("last_synced_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  organization Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  worker       AiWorker       @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  emails       EmailMessage[]
+
+  @@map("email_accounts")
+}
+
+// ============================================================
+// 18. Email Messages
+// ============================================================
+
+model EmailMessage {
+  id               String    @id @default(cuid())
+  orgId            String    @map("org_id")
+  accountId        String?   @map("account_id")
+  workerId         String?   @map("worker_id")
+  direction        String    // inbound | outbound
+  status           String    @default("draft") // draft | sending | sent | failed | received
+  fromAddress      String    @map("from_address")
+  toAddresses      String[]  @map("to_addresses")
+  ccAddresses      String[]  @default([]) @map("cc_addresses")
+  subject          String?
+  bodyText         String?   @map("body_text") @db.Text
+  bodyHtml         String?   @map("body_html") @db.Text
+  attachments      Json      @default("[]")
+  externalId       String?   @map("external_id")
+  threadId         String?   @map("thread_id")
+  linkedCustomerId String?   @map("linked_customer_id")
+  linkedInvoiceId  String?   @map("linked_invoice_id")
+  sentAt           DateTime? @map("sent_at")
+  receivedAt       DateTime? @map("received_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  organization  Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  account       EmailAccount? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  worker        AiWorker?     @relation(fields: [workerId], references: [id])
+  linkedCustomer Customer?    @relation(fields: [linkedCustomerId], references: [id])
+  linkedInvoice Invoice?      @relation(fields: [linkedInvoiceId], references: [id])
+
+  @@index([accountId, direction, createdAt(sort: Desc)])
+  @@index([threadId])
+  @@map("email_messages")
+}
+
+// ============================================================
+// 19. Projects
+// ============================================================
+
+model Project {
+  id            String    @id @default(cuid())
+  orgId         String    @map("org_id")
+  name          String
+  description   String?   @db.Text
+  status        String    @default("active") // planning | active | on_hold | completed | cancelled
+  priority      String    @default("medium")
+  ownerWorkerId String?   @map("owner_worker_id")
+  customerId    String?   @map("customer_id")
+  budget        Decimal?  @db.Decimal(12, 2)
+  startDate     DateTime? @map("start_date") @db.Date
+  dueDate       DateTime? @map("due_date") @db.Date
+  completedAt   DateTime? @map("completed_at")
+  tags          String[]  @default([])
+  settings      Json      @default("{}")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  ownerWorker  AiWorker?     @relation(fields: [ownerWorkerId], references: [id])
+  customer     Customer?     @relation(fields: [customerId], references: [id])
+  tasks        ProjectTask[]
+
+  @@index([orgId, status])
+  @@map("projects")
+}
+
+// ============================================================
+// 20. Project Tasks
+// ============================================================
+
+model ProjectTask {
+  id               String    @id @default(cuid())
+  projectId        String    @map("project_id")
+  orgId            String    @map("org_id")
+  title            String
+  description      String?   @db.Text
+  status           String    @default("todo") // todo | in_progress | review | done | blocked
+  priority         String    @default("medium")
+  assignedWorkerId String?   @map("assigned_worker_id")
+  assignedUserId   String?   @map("assigned_user_id")
+  parentTaskId     String?   @map("parent_task_id")
+  dueDate          DateTime? @map("due_date") @db.Date
+  estimatedHours   Decimal?  @map("estimated_hours") @db.Decimal(6, 1)
+  actualHours      Decimal?  @map("actual_hours") @db.Decimal(6, 1)
+  sortOrder        Int       @default(0) @map("sort_order")
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  assignedWorker AiWorker?    @relation("TaskAssignedWorker", fields: [assignedWorkerId], references: [id])
+  assignedUser   User?        @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
+  parentTask     ProjectTask? @relation("TaskHierarchy", fields: [parentTaskId], references: [id])
+  subTasks       ProjectTask[] @relation("TaskHierarchy")
+
+  @@index([projectId, status])
+  @@index([assignedWorkerId, status])
+  @@map("project_tasks")
+}
+
+// ============================================================
+// 21. Notifications
+// ============================================================
+
+model Notification {
+  id             String    @id @default(cuid())
+  orgId          String    @map("org_id")
+  userId         String    @map("user_id")
+  type           String
+  title          String
+  body           String?
+  actionUrl      String?   @map("action_url")
+  sourceWorkerId String?   @map("source_worker_id")
+  isRead         Boolean   @default(false) @map("is_read")
+  readAt         DateTime? @map("read_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceWorker AiWorker?    @relation(fields: [sourceWorkerId], references: [id])
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+// ============================================================
+// 22. Activity Logs (audit trail)
+// ============================================================
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  orgId      String   @map("org_id")
+  actorType  String   @map("actor_type")  // user | worker | system
+  actorId    String   @map("actor_id")
+  actorName  String?  @map("actor_name")
+  action     String   // created | updated | deleted | sent | completed | failed | approved | rejected
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  entityName String?  @map("entity_name")
+  details    Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
+}
+
+// ============================================================
+// 23. Approval Requests
+// ============================================================
+
+model ApprovalRequest {
+  id              String    @id @default(cuid())
+  orgId           String    @map("org_id")
+  type            String    // invoice_send | expense_approve | purchase_order | worker_create | project_budget | document_publish
+  status          String    @default("pending") // pending | approved | rejected | expired
+  title           String
+  description     String?   @db.Text
+  entityType      String    @map("entity_type")
+  entityId        String    @map("entity_id")
+  requestedByType String    @map("requested_by_type")
+  requestedById   String    @map("requested_by_id")
+  requestedByName String?   @map("requested_by_name")
+  approvedBy      String?   @map("approved_by")
+  decisionNote    String?   @map("decision_note")
+  decidedAt       DateTime? @map("decided_at")
+  expiresAt       DateTime? @map("expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  decider      User?        @relation("ApprovalDecider", fields: [approvedBy], references: [id])
+
+  @@index([orgId, status])
+  @@map("approval_requests")
+}
+
+// ============================================================
+// 24. Tags
+// ============================================================
+
+model Tag {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  name      String
+  color     String   @default("#6B7280")
+  category  String?  // customer | product | project | document | general
+  createdAt DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, name])
+  @@map("tags")
+}
+
+// ============================================================
+// 25. Recurring Schedules
+// ============================================================
+
+model RecurringSchedule {
+  id             String    @id @default(cuid())
+  orgId          String    @map("org_id")
+  workerId       String    @map("worker_id")
+  type           String    // invoice_generate | report_create | inventory_check | heartbeat_ping | email_digest | data_backup
+  name           String
+  description    String?
+  cronExpression String    @map("cron_expression")
+  config         Json      @default("{}")
+  isActive       Boolean   @default(true) @map("is_active")
+  lastRunAt      DateTime? @map("last_run_at")
+  nextRunAt      DateTime? @map("next_run_at")
+  runCount       Int       @default(0) @map("run_count")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  worker       AiWorker     @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([nextRunAt])
+  @@map("recurring_schedules")
+}
