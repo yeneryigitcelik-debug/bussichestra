@@ -26,6 +26,13 @@ interface PipelineStage {
   total_value: number;
 }
 
+interface PipelineStageConfig {
+  id: string;
+  label: string;
+  color: string;
+  description: string;
+}
+
 interface Customer {
   id: string;
   name: string;
@@ -69,12 +76,14 @@ const stageCardConfig: Record<
   churned: { icon: UserX, color: "text-red-400", bg: "bg-red-500/10", borderColor: "border-red-500/20" },
 };
 
-const STAGE_ORDER = ["lead", "prospect", "customer", "churned"];
+const DEFAULT_STAGE_ORDER = ["lead", "prospect", "customer", "churned"];
 
 /* ---------- Component ---------- */
 
 export default function CRMPage() {
   const [pipeline, setPipeline] = useState<PipelineStage[]>([]);
+  const [pipelineStages, setPipelineStages] = useState<PipelineStageConfig[]>([]);
+  const [industry, setIndustry] = useState<string>("default");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +120,8 @@ export default function CRMPage() {
       const pipelineData = await pipelineRes.json();
       const customersData = await customersRes.json();
       setPipeline(pipelineData.pipeline ?? pipelineData);
+      if (pipelineData.pipeline_stages) setPipelineStages(pipelineData.pipeline_stages);
+      if (pipelineData.industry) setIndustry(pipelineData.industry);
       setCustomers(customersData.customers ?? customersData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -157,19 +168,26 @@ export default function CRMPage() {
   });
 
   /* -- Ordered pipeline cards -- */
-  const orderedPipeline = STAGE_ORDER.map((stage) => {
+  const stageOrder = pipelineStages.length > 0
+    ? pipelineStages.map((s) => s.id)
+    : DEFAULT_STAGE_ORDER;
+
+  const orderedPipeline = stageOrder.map((stage) => {
     const found = pipeline.find((p) => p.stage === stage);
     return found ?? { stage, count: 0, total_value: 0 };
   });
+
+  // Build dynamic stage labels from config
+  const stageLabels: Record<string, string> = {};
+  for (const s of pipelineStages) {
+    stageLabels[s.id] = s.label;
+  }
 
   /* ---------- Render ---------- */
 
   const stageTabs = [
     { key: "all", label: "All" },
-    { key: "lead", label: "Lead" },
-    { key: "prospect", label: "Prospect" },
-    { key: "customer", label: "Customer" },
-    { key: "churned", label: "Churned" },
+    ...stageOrder.map((s) => ({ key: s, label: stageLabels[s] || s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ") })),
   ];
 
   return (

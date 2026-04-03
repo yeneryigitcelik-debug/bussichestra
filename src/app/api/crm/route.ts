@@ -1,5 +1,6 @@
 import { getAuthenticatedContext } from "@/lib/api-utils";
 import { NextRequest, NextResponse } from "next/server";
+import { getPipelineStages } from "@/lib/pipeline-stages";
 
 export const dynamic = 'force-dynamic';
 
@@ -11,14 +12,20 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // Load org settings to get industry for pipeline stages
+    const org = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { settings: true },
+    });
+    const settings = org?.settings as Record<string, string> | null;
+    const industry = settings?.industry || "default";
+    const pipelineStages = getPipelineStages(industry);
+
     const [customers, newLeadsCount] = await Promise.all([
-      // All customers for pipeline and totals
       prisma.customer.findMany({
         where: { orgId },
         select: { id: true, stage: true, lifetimeValue: true },
       }),
-
-      // New leads this month
       prisma.customer.count({
         where: {
           orgId,
@@ -62,6 +69,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       pipeline,
+      pipeline_stages: pipelineStages,
+      industry,
       total_customers: customers.length,
       new_leads_this_month: newLeadsCount,
       top_customers: topCustomers,

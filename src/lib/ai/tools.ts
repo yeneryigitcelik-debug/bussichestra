@@ -472,16 +472,53 @@ export const managerTools: ToolDefinition[] = [
 // ============================================================
 export function getToolsForDepartment(department: string, isManager: boolean = false): ToolDefinition[] {
   const departmentMap: Record<string, ToolDefinition[]> = {
+    // Core departments
     Finance: [...financeTools, ...documentTools, ...emailTools],
     Sales: [...salesTools, ...documentTools, ...emailTools],
     Operations: [...operationsTools, ...projectTools, ...documentTools],
     "Human Resources": [...projectTools, ...documentTools, ...emailTools],
-    Marketing: [...documentTools, ...emailTools],
+    Marketing: [...documentTools, ...emailTools, ...salesTools],
     "Customer Success": [...salesTools, ...documentTools, ...emailTools],
     Executive: [...financeTools, ...salesTools, ...operationsTools, ...projectTools, ...documentTools, ...emailTools],
+
+    // Industry-specific departments
+    Claims: [...projectTools, ...documentTools, ...emailTools, ...salesTools],
+    Underwriting: [...documentTools, ...emailTools, ...operationsTools],
+    "Property Management": [...operationsTools, ...projectTools, ...documentTools],
+    "Patient Relations": [...salesTools, ...emailTools, ...documentTools],
+    "Clinical Operations": [...operationsTools, ...projectTools, ...documentTools],
+    Administration: [...projectTools, ...documentTools, ...emailTools],
+    "Fleet Operations": [...operationsTools, ...projectTools, ...documentTools],
+    Warehousing: [...operationsTools, ...documentTools],
+    "Case Management": [...projectTools, ...documentTools, ...emailTools],
+    Research: [...documentTools, ...emailTools],
+    "Client Services": [...salesTools, ...documentTools, ...emailTools],
+    Tax: [...financeTools, ...documentTools],
+    Audit: [...financeTools, ...documentTools],
+    Enrollment: [...salesTools, ...emailTools, ...documentTools],
+    Curriculum: [...projectTools, ...operationsTools, ...documentTools],
+    "Student Services": [...emailTools, ...documentTools, ...projectTools],
+    "Membership Sales": [...salesTools, ...emailTools, ...documentTools],
+    "Fitness Operations": [...operationsTools, ...projectTools, ...documentTools],
+    "Customer Experience": [...salesTools, ...emailTools, ...documentTools],
+    "Service Center": [...operationsTools, ...projectTools, ...documentTools],
+    "Parts & Inventory": [...operationsTools, ...documentTools],
+    "Business Development": [...salesTools, ...emailTools, ...documentTools],
+    "Project Management": [...projectTools, ...operationsTools, ...documentTools],
+    "Safety & Compliance": [...documentTools, ...projectTools, ...emailTools],
+    "Pharmacy Operations": [...operationsTools, ...documentTools],
+    Compliance: [...documentTools, ...emailTools],
+    "Tour Operations": [...operationsTools, ...projectTools, ...documentTools],
+    "Customer Service": [...salesTools, ...emailTools, ...documentTools],
+    Kitchen: [...operationsTools, ...documentTools],
+    Creative: [...documentTools, ...emailTools, ...projectTools],
+    Delivery: [...projectTools, ...operationsTools, ...documentTools],
+    Engineering: [...projectTools, ...documentTools],
+    Production: [...operationsTools, ...projectTools, ...documentTools],
+    "Quality Control": [...documentTools, ...emailTools, ...projectTools],
   };
 
-  const tools = departmentMap[department] || [...documentTools];
+  const tools = departmentMap[department] || [...documentTools, ...emailTools];
 
   if (isManager) {
     return [...tools, ...managerTools];
