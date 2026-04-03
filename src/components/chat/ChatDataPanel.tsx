@@ -357,18 +357,79 @@ export function ChatDataPanel({ workerId, department }: ChatDataPanelProps) {
       // Fallback: fetch from individual endpoints
       if (dept.includes("finance") || dept.includes("executive")) {
         const res = await fetch("/api/finance");
-        if (res.ok) setFinanceData(await res.json());
+        if (res.ok) {
+          const raw = await res.json();
+          // API returns outstanding_invoices as { count, total } object
+          setFinanceData({
+            revenue_this_month: raw.revenue_this_month ?? 0,
+            expenses_this_month: raw.expenses_this_month ?? 0,
+            net_profit: raw.net_profit ?? 0,
+            outstanding_invoices_count: raw.outstanding_invoices?.count ?? raw.outstanding_invoices_count ?? 0,
+            outstanding_invoices_total: raw.outstanding_invoices?.total ?? raw.outstanding_invoices_total ?? 0,
+            recent_transactions: (raw.recent_transactions || []).map((t: Record<string, unknown>) => ({
+              id: t.id,
+              description: t.description,
+              amount: Number(t.amount ?? 0),
+              type: t.type,
+              date: t.date || t.createdAt,
+            })),
+            recent_invoices: (raw.recent_invoices || []).map((inv: Record<string, unknown>) => ({
+              id: inv.id,
+              invoice_number: inv.invoiceNumber || inv.invoice_number || inv.id,
+              customer_name: (inv.customer as { name?: string })?.name || inv.customer_name || "Unknown",
+              total: Number(inv.total ?? 0),
+              status: inv.status,
+            })),
+          });
+        }
       }
       if (dept.includes("sales") || dept.includes("executive") || dept.includes("crm")) {
         const res = await fetch("/api/crm");
-        if (res.ok) setCrmData(await res.json());
+        if (res.ok) {
+          const raw = await res.json();
+          setCrmData({
+            total_customers: raw.total_customers ?? 0,
+            pipeline: raw.pipeline || [],
+            // Prisma returns lifetimeValue (camelCase), normalize to lifetime_value
+            top_customers: (raw.top_customers || []).map((c: Record<string, unknown>) => ({
+              id: c.id,
+              name: c.name,
+              stage: c.stage,
+              lifetime_value: Number(c.lifetimeValue ?? c.lifetime_value ?? 0),
+            })),
+          });
+        }
       }
       if (dept.includes("operations") || dept.includes("production") || dept.includes("kitchen") || dept.includes("executive")) {
         const res = await fetch("/api/inventory");
-        if (res.ok) setInventoryData(await res.json());
+        if (res.ok) {
+          const raw = await res.json();
+          setInventoryData({
+            total_products: raw.total_products ?? 0,
+            total_stock_value: raw.total_stock_value ?? 0,
+            // Prisma returns reorderAt (camelCase), normalize to reorder_at
+            low_stock_alerts: (raw.low_stock_alerts || []).map((p: Record<string, unknown>) => ({
+              id: p.id,
+              name: p.name,
+              quantity: Number(p.quantity ?? 0),
+              reorder_at: Number(p.reorderAt ?? p.reorder_at ?? 0),
+            })),
+            products: (raw.products || []).map((p: Record<string, unknown>) => ({
+              id: p.id,
+              name: p.name,
+              sku: p.sku || "",
+              quantity: Number(p.quantity ?? 0),
+              price: Number(p.price ?? 0),
+            })),
+          });
+        }
       }
       const projRes = await fetch("/api/projects");
-      if (projRes.ok) setProjectData(await projRes.json());
+      if (projRes.ok) {
+        const raw = await projRes.json();
+        // API returns { projects: [...], total: n }
+        setProjectData({ projects: raw.projects || [] });
+      }
 
       setLastUpdated(new Date());
     } catch {

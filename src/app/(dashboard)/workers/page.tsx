@@ -57,7 +57,30 @@ export default function WorkersPage() {
     try {
       const res = await fetch("/api/workers");
       const data = await res.json();
-      setWorkers(data.workers || []);
+      const list = Array.isArray(data) ? data : (data.workers || []);
+      // Normalize both Prisma camelCase (authenticated) and snake_case (demo) formats
+      setWorkers(list.map((w: Record<string, unknown>) => {
+        const dept = (w.department as { name?: string })?.name
+          || w.department_name as string
+          || (w.settings as Record<string, string>)?.department_name
+          || "General";
+        return {
+          id: String(w.id),
+          name: String(w.name || ""),
+          role: String(w.role || ""),
+          persona: String(w.persona || ""),
+          status: String(w.status || "active"),
+          tools: Array.isArray(w.tools) ? w.tools : [],
+          is_manager: Boolean(w.isManager ?? w.is_manager),
+          model: String(w.model || ""),
+          temperature: Number(w.temperature ?? 0.7),
+          language: String(w.language || "en"),
+          email: (w.email as string) || null,
+          settings: (w.settings as Record<string, string>) || {},
+          department_name: dept,
+          created_at: String(w.createdAt || w.created_at || ""),
+        };
+      }));
     } catch {
       // silently fail
     } finally {

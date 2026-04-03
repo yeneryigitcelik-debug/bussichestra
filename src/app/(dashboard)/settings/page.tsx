@@ -56,7 +56,7 @@ export default function SettingsPage() {
 
       if (profileRes.ok) {
         const profile = await profileRes.json();
-        setFullName(profile.full_name || "");
+        setFullName(profile.name || "");
         setEmail(profile.email || user?.email || "");
       }
     } catch {

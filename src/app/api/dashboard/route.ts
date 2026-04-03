@@ -1,6 +1,8 @@
 import { getAuthenticatedContext } from "@/lib/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { error, prisma, orgId } = await getAuthenticatedContext();
@@ -79,14 +81,14 @@ export async function GET(request: NextRequest) {
     ).length;
 
     return NextResponse.json({
-      total_revenue: totalRevenue,
-      total_expenses: totalExpenses,
-      total_customers: customersCount,
-      total_products: productsCount,
-      active_workers: activeWorkersCount,
-      pending_approvals: pendingApprovalsCount,
-      recent_activity: recentActivity,
-      low_stock_count: lowStockCount,
+      totalRevenue,
+      totalExpenses,
+      totalCustomers: customersCount,
+      totalProducts: productsCount,
+      activeWorkers: activeWorkersCount,
+      pendingApprovals: pendingApprovalsCount,
+      recentActivity,
+      lowStockCount: lowStockCount,
     });
   } catch (err) {
     console.error("Dashboard API error:", err);

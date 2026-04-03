@@ -16,6 +16,8 @@ import type { AIWorker } from "@/types/database";
 import type { ToolDefinition } from "@/types/ai";
 import type Anthropic from "@anthropic-ai/sdk";
 
+export const dynamic = 'force-dynamic';
+
 interface InboundEmail {
   from_address: string;
   to_address: string;

@@ -7,18 +7,18 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 interface DashboardData {
-  total_revenue: number;
-  total_expenses: number;
-  total_customers: number;
-  total_products: number;
-  active_workers: number;
-  low_stock_count: number;
-  recent_activity: {
+  totalRevenue: number;
+  totalExpenses: number;
+  totalCustomers: number;
+  totalProducts: number;
+  activeWorkers: number;
+  lowStockCount: number;
+  recentActivity: {
     id: string;
-    actor_name: string;
+    actorName: string;
     action: string;
-    entity_name: string;
-    created_at: string;
+    entityName: string;
+    createdAt: string;
   }[];
 }
 
@@ -70,11 +70,11 @@ export default function DashboardPage() {
     return () => clearInterval(iv);
   }, []);
 
-  const revenue = data?.total_revenue ?? 0;
-  const customers = data?.total_customers ?? 0;
-  const products = data?.total_products ?? 0;
-  const alerts = data?.low_stock_count ?? 0;
-  const activity = data?.recent_activity || [];
+  const revenue = data?.totalRevenue ?? 0;
+  const customers = data?.totalCustomers ?? 0;
+  const products = data?.totalProducts ?? 0;
+  const alerts = data?.lowStockCount ?? 0;
+  const activity = data?.recentActivity || [];
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -125,16 +125,16 @@ export default function DashboardPage() {
               {activity.slice(0, 8).map((item, i) => (
                 <div key={item.id || i} className="flex items-center gap-2.5 px-3 py-2">
                   <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary text-[10px] font-bold",
-                    ACTOR_COLORS[item.actor_name] || "text-purple-400")}>
-                    {item.actor_name?.[0] || "?"}
+                    ACTOR_COLORS[item.actorName] || "text-purple-400")}>
+                    {item.actorName?.[0] || "?"}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] leading-tight">
-                      <span className={cn("font-semibold", ACTOR_COLORS[item.actor_name] || "text-purple-400")}>{item.actor_name}</span>
-                      {" "}<span className="text-muted-foreground">{item.action} {item.entity_name}</span>
+                      <span className={cn("font-semibold", ACTOR_COLORS[item.actorName] || "text-purple-400")}>{item.actorName}</span>
+                      {" "}<span className="text-muted-foreground">{item.action} {item.entityName}</span>
                     </p>
                   </div>
-                  <span className="text-[9px] text-muted-foreground shrink-0">{timeAgo(item.created_at)}</span>
+                  <span className="text-[9px] text-muted-foreground shrink-0">{timeAgo(item.createdAt)}</span>
                 </div>
               ))}
             </div>

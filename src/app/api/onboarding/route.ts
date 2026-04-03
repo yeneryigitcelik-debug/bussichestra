@@ -3,6 +3,8 @@ import { getAuthenticatedContext } from "@/lib/api-utils";
 import { getTemplate } from "@/lib/company-templates";
 import { AI_MODELS } from "@/lib/constants";
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   const { error, prisma, userId, orgId } = await getAuthenticatedContext();
   if (error) return error;

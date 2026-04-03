@@ -1,6 +1,8 @@
 import { getAuthenticatedContext } from "@/lib/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { error, prisma, orgId, userId } = await getAuthenticatedContext();
@@ -8,6 +10,7 @@ export async function GET(request: NextRequest) {
 
     const notifications = await prisma.notification.findMany({
       where: { orgId, userId },
+      include: { sourceWorker: { select: { id: true, name: true } } },
       orderBy: [
         { isRead: "asc" },
         { createdAt: "desc" },

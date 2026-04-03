@@ -14,20 +14,20 @@ interface Project {
   description: string | null;
   status: string;
   priority: string;
-  due_date: string | null;
+  dueDate: string | null;
   total_tasks: number;
   completed_tasks: number;
 }
 
 interface Task {
   id: string;
-  project_id: string;
+  projectId: string;
   title: string;
   description: string | null;
   status: string;
   priority: string;
-  assigned_worker_id: string | null;
-  due_date: string | null;
+  assignedWorkerId: string | null;
+  dueDate: string | null;
 }
 
 // --- Badge helpers ---
@@ -370,10 +370,10 @@ export default function ProjectsPage() {
 
                           {/* Meta row */}
                           <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-                            {project.due_date && (
+                            {project.dueDate && (
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                Due {new Date(project.due_date).toLocaleDateString("en-US", {
+                                Due {new Date(project.dueDate).toLocaleDateString("en-US", {
                                   month: "short",
                                   day: "numeric",
                                   year: "numeric",

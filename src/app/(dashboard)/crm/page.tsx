@@ -32,8 +32,8 @@ interface Customer {
   email: string;
   company: string;
   stage: "lead" | "prospect" | "customer" | "churned";
-  lifetime_value: number;
-  last_contact: string;
+  lifetimeValue: number;
+  lastContactAt: string | null;
   phone?: string;
   notes?: string;
 }
@@ -346,12 +346,12 @@ export default function CRMPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right text-sm tabular-nums">
-                            {customer.lifetime_value > 0
-                              ? formatCurrency(customer.lifetime_value)
+                            {Number(customer.lifetimeValue) > 0
+                              ? formatCurrency(Number(customer.lifetimeValue))
                               : "\u2014"}
                           </td>
                           <td className="px-6 py-4 text-sm text-muted-foreground">
-                            {formatDate(customer.last_contact)}
+                            {customer.lastContactAt ? formatDate(customer.lastContactAt) : "\u2014"}
                           </td>
                           <td className="px-6 py-4 text-muted-foreground">
                             {expandedId === customer.id ? (
@@ -376,8 +376,8 @@ export default function CRMPage() {
                                 <div>
                                   <p className="text-muted-foreground text-xs mb-1">Lifetime Value</p>
                                   <p>
-                                    {customer.lifetime_value > 0
-                                      ? formatCurrency(customer.lifetime_value)
+                                    {customer.lifetimeValue > 0
+                                      ? formatCurrency(customer.lifetimeValue)
                                       : "\u2014"}
                                   </p>
                                 </div>

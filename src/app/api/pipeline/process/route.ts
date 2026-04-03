@@ -14,6 +14,8 @@ import type { AIWorker } from "@/types/database";
 import type { ToolDefinition } from "@/types/ai";
 import type Anthropic from "@anthropic-ai/sdk";
 
+export const dynamic = 'force-dynamic';
+
 interface ProcessResult {
   worker: string;
   task_id: string;

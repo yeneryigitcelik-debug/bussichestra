@@ -2,6 +2,8 @@ import { getAuthenticatedContext } from "@/lib/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { error, prisma, orgId } = await getAuthenticatedContext();

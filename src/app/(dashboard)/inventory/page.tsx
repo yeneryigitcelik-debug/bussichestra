@@ -13,11 +13,11 @@ interface Product {
   category: string | null;
   price: number;
   quantity: number;
-  reorder_at: number;
-  cost_price: number | null;
+  reorderAt: number;
+  costPrice: number | null;
   location: string | null;
   supplier: string | null;
-  is_active: boolean;
+  isActive: boolean;
 }
 
 interface InventoryData {
@@ -27,9 +27,9 @@ interface InventoryData {
   low_stock_alerts: Product[];
 }
 
-function stockColor(quantity: number, reorderAt: number): string {
-  if (quantity <= reorderAt) return "text-red-400";
-  if (quantity <= reorderAt * 2) return "text-yellow-400";
+function stockColor(quantity: number, reorderAtVal: number): string {
+  if (quantity <= reorderAtVal) return "text-red-400";
+  if (quantity <= reorderAtVal * 2) return "text-yellow-400";
   return "text-green-400";
 }
 
@@ -78,7 +78,7 @@ export default function InventoryPage() {
   const filteredProducts = data
     ? data.products.filter((p) => {
         if (categoryFilter !== "all" && p.category !== categoryFilter) return false;
-        if (lowStockOnly && !(p.reorder_at > 0 && p.quantity <= p.reorder_at)) return false;
+        if (lowStockOnly && !(p.reorderAt > 0 && p.quantity <= p.reorderAt)) return false;
         return true;
       })
     : [];
@@ -325,11 +325,11 @@ export default function InventoryPage() {
                             <span className="text-xs text-muted-foreground">--</span>
                           )}
                         </td>
-                        <td className="px-4 py-3">${product.price.toFixed(2)}</td>
+                        <td className="px-4 py-3">${Number(product.price).toFixed(2)}</td>
                         <td
                           className={cn(
                             "px-4 py-3 font-semibold",
-                            stockColor(product.quantity, product.reorder_at)
+                            stockColor(product.quantity, product.reorderAt)
                           )}
                         >
                           {product.quantity}

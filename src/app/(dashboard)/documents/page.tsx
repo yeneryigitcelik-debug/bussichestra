@@ -29,11 +29,11 @@ interface Document {
   type: "contract" | "proposal" | "report" | "policy" | "template" | "other";
   description: string | null;
   folder: string | null;
-  file_size: number | null;
-  mime_type: string | null;
-  created_at: string;
-  updated_at: string;
-  uploaded_by: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  createdAt: string;
+  updatedAt: string;
+  uploadedBy: string | null;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -389,8 +389,8 @@ export default function DocumentsPage() {
                         </p>
                       )}
                       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{formatFileSize(doc.file_size)}</span>
-                        <span>{formatDate(doc.created_at)}</span>
+                        <span>{formatFileSize(doc.fileSize)}</span>
+                        <span>{formatDate(doc.createdAt)}</span>
                       </div>
                     </div>
                   );
@@ -450,13 +450,13 @@ export default function DocumentsPage() {
                             </span>
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 text-sm text-muted-foreground">
-                            {formatFileSize(doc.file_size)}
+                            {formatFileSize(doc.fileSize)}
                           </td>
                           <td className="px-5 py-3 text-sm text-muted-foreground">
                             {doc.folder ?? "--"}
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 text-right text-sm text-muted-foreground">
-                            {formatDate(doc.created_at)}
+                            {formatDate(doc.createdAt)}
                           </td>
                         </tr>
                       );

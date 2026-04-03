@@ -8,6 +8,8 @@ import { executeToolCall } from "@/app/api/tools/handler";
 import { mapPrismaWorkerToAIWorker } from "@/lib/ai/worker-mapper";
 import type Anthropic from "@anthropic-ai/sdk";
 
+export const dynamic = 'force-dynamic';
+
 const MAX_TOOL_ITERATIONS = 5;
 
 export async function POST(

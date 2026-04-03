@@ -52,16 +52,26 @@ export default function ChatListPage() {
         const res = await fetch("/api/workers");
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setWorkers(data.map((w: Record<string, unknown>) => ({
-              id: String(w.id),
-              name: String(w.name),
-              role: String(w.role),
-              department: (w.settings as { department_name?: string })?.department_name || "General",
-              status: String(w.status || "active"),
-              is_manager: Boolean(w.is_manager),
-              persona: String(w.persona || ""),
-            })));
+          const list = Array.isArray(data) ? data : data.workers;
+          if (Array.isArray(list) && list.length > 0) {
+            setWorkers(list.map((w: Record<string, unknown>) => {
+              // Prisma (authenticated) returns department as { name: string } via include
+              // Demo mode returns department_name as a flat string
+              const dept = (w.department as { name?: string })?.name
+                || (w as Record<string, unknown>).department_name as string
+                || (w.settings as { department_name?: string })?.department_name
+                || "General";
+              return {
+                id: String(w.id),
+                name: String(w.name),
+                role: String(w.role),
+                department: dept,
+                status: String(w.status || "active"),
+                // Prisma returns isManager (camelCase), demo returns is_manager (snake_case)
+                is_manager: Boolean(w.isManager ?? w.is_manager),
+                persona: String(w.persona || ""),
+              };
+            }));
           }
         }
       } catch {

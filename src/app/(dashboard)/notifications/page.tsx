@@ -27,10 +27,10 @@ interface Notification {
     | "system";
   title: string;
   body: string | null;
-  is_read: boolean;
-  source_worker_id: string | null;
-  source_worker_name: string | null;
-  created_at: string;
+  isRead: boolean;
+  sourceWorkerId: string | null;
+  sourceWorker: { id: string; name: string } | null;
+  createdAt: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ function groupByDate(
   const order = ["Today", "Yesterday", "Earlier"];
 
   for (const n of notifications) {
-    const group = getDateGroup(n.created_at);
+    const group = getDateGroup(n.createdAt);
     if (!groups[group]) groups[group] = [];
     groups[group].push(n);
   }
@@ -187,12 +187,12 @@ export default function NotificationsPage() {
   }
 
   function handleClick(notification: Notification) {
-    if (!notification.is_read) {
+    if (!notification.isRead) {
       markAsRead(notification.id);
     }
   }
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
   const grouped = groupByDate(notifications);
 
   return (
@@ -265,7 +265,7 @@ export default function NotificationsPage() {
                       onClick={() => handleClick(notification)}
                       className={cn(
                         "flex cursor-pointer items-start gap-4 border-b border-border/50 px-6 py-4 transition-colors hover:bg-secondary/50",
-                        !notification.is_read && "bg-secondary/20"
+                        !notification.isRead && "bg-secondary/20"
                       )}
                     >
                       {/* Type icon */}
@@ -284,7 +284,7 @@ export default function NotificationsPage() {
                           <p
                             className={cn(
                               "text-sm",
-                              !notification.is_read
+                              !notification.isRead
                                 ? "font-semibold"
                                 : "font-medium"
                             )}
@@ -292,11 +292,11 @@ export default function NotificationsPage() {
                             {notification.title}
                           </p>
                           <div className="flex items-center gap-2 shrink-0">
-                            {!notification.is_read && (
+                            {!notification.isRead && (
                               <span className="h-2 w-2 rounded-full bg-primary" />
                             )}
                             <span className="text-xs text-muted-foreground">
-                              {timeAgo(notification.created_at)}
+                              {timeAgo(notification.createdAt)}
                             </span>
                           </div>
                         </div>
@@ -305,13 +305,13 @@ export default function NotificationsPage() {
                             {notification.body}
                           </p>
                         )}
-                        {notification.source_worker_name && (
+                        {notification.sourceWorker && (
                           <div className="mt-1.5 flex items-center gap-2">
                             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-[10px] font-medium">
-                              {notification.source_worker_name[0]}
+                              {notification.sourceWorker.name[0]}
                             </div>
                             <span className="text-xs text-muted-foreground">
-                              {notification.source_worker_name}
+                              {notification.sourceWorker.name}
                             </span>
                           </div>
                         )}

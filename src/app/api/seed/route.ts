@@ -1,6 +1,8 @@
 import { getAuthenticatedContext } from "@/lib/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   const { error, prisma, orgId, userId } = await getAuthenticatedContext();
   if (error) return error;
@@ -201,7 +203,33 @@ export async function POST(request: NextRequest) {
       taskCount++;
     }
 
-    // --- 7. Notifications (5) ---
+    // --- 7. Documents (6) ---
+    const documentsData = [
+      { orgId, name: "Q1 Financial Report", type: "report", folder: "/reports", description: "Quarterly financial summary including P&L, cash flow, and balance sheet", fileSize: 245000 },
+      { orgId, name: "Employee Handbook 2026", type: "policy", folder: "/policies", description: "Company policies, benefits, and code of conduct", fileSize: 512000 },
+      { orgId, name: "Sales Proposal Template", type: "template", folder: "/templates", description: "Standard proposal template for enterprise clients", fileSize: 128000, isTemplate: true },
+      { orgId, name: "Acme Corp Contract", type: "contract", folder: "/contracts", description: "Service agreement with Acme Corporation", fileSize: 340000 },
+      { orgId, name: "Product Roadmap 2026", type: "report", folder: "/reports", description: "Annual product roadmap and feature planning", fileSize: 180000 },
+      { orgId, name: "NDA Template", type: "template", folder: "/templates", description: "Standard non-disclosure agreement template", fileSize: 85000, isTemplate: true },
+    ];
+
+    for (const d of documentsData) {
+      await prisma.document.create({ data: { ...d, uploadedBy: userId } });
+    }
+
+    // --- 8. Email Messages (4) ---
+    const emailsData = [
+      { orgId, direction: "inbound", status: "received", fromAddress: "contact@acme.com", toAddresses: ["team@company.ai"], subject: "Partnership Inquiry", bodyText: "We'd like to discuss a potential partnership opportunity. Please let us know your availability for a call this week.", receivedAt: daysAgo(2) },
+      { orgId, direction: "outbound", status: "sent", fromAddress: "team@company.ai", toAddresses: ["hello@techstart.io"], subject: "Follow-up: Product Demo", bodyText: "Thank you for your interest in our platform. I've attached the demo recording and pricing details as discussed.", sentAt: daysAgo(1) },
+      { orgId, direction: "inbound", status: "received", fromAddress: "sales@innosoft.dev", toAddresses: ["team@company.ai"], subject: "Invoice Payment Confirmation", bodyText: "This is to confirm that we have processed payment for INV-2026-001. The amount of $25,000 has been transferred.", receivedAt: daysAgo(5) },
+      { orgId, direction: "inbound", status: "received", fromAddress: "procurement@nexgen.tech", toAddresses: ["team@company.ai"], subject: "Request for Quote", bodyText: "We are looking for an enterprise solution for our team of 500. Could you provide a custom quote?", receivedAt: daysAgo(3) },
+    ];
+
+    for (const e of emailsData) {
+      await prisma.emailMessage.create({ data: e });
+    }
+
+    // --- 9. Notifications (5) ---
     const notificationsData = [
       { orgId, userId, title: "Invoice Paid", body: "Acme Corporation paid INV-2026-001 ($25,000)", type: "success" },
       { orgId, userId, title: "Overdue Invoice", body: "INV-2026-004 for NexGen Robotics is 14 days overdue ($5,400)", type: "warning" },
@@ -214,18 +242,18 @@ export async function POST(request: NextRequest) {
       await prisma.notification.create({ data: n });
     }
 
-    // --- 8. Activity Logs (10) ---
+    // --- 10. Activity Logs (10) ---
     const activityLogsData = [
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "created", entityType: "customer", entityName: "Added new customer: Acme Corporation" },
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "created", entityType: "invoice", entityName: "Created invoice INV-2026-001 for $25,000" },
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "updated", entityType: "invoice", entityName: "Invoice INV-2026-001 was marked as paid" },
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "created", entityType: "project", entityName: "Created project: Website Redesign" },
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "completed", entityType: "task", entityName: "Completed task: Design new homepage mockups" },
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "updated", entityType: "product", entityName: "Updated inventory for API Credits Pack (1000)" },
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "updated", entityType: "customer", entityName: "Updated Alpine Consulting stage to churned" },
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "sent", entityType: "email", entityName: "Sent partnership proposal to GlobalTech Industries" },
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "sent", entityType: "invoice", entityName: "Sent invoice INV-2026-002 to InnoSoft Solutions ($12,500)" },
-      { orgId, actorType: "user", actorId: userId, actorName: "User", action: "completed", entityType: "worker", entityName: "Chat session with Ayse (CFO) about Q1 financials" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Ayse", action: "created", entityType: "invoice", entityName: "Created invoice INV-2026-001 for $25,000" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Ayse", action: "updated", entityType: "invoice", entityName: "Invoice INV-2026-001 was marked as paid" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Marco", action: "created", entityType: "customer", entityName: "Added new customer: Acme Corporation" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Marco", action: "sent", entityType: "email", entityName: "Sent partnership proposal to GlobalTech Industries" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Kenji", action: "created", entityType: "project", entityName: "Created project: Website Redesign" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Kenji", action: "completed", entityType: "task", entityName: "Completed task: Design new homepage mockups" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Kenji", action: "updated", entityType: "product", entityName: "Updated inventory for API Credits Pack (1000)" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Sophia", action: "completed", entityType: "worker", entityName: "Cross-department review: Q1 performance analysis" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Elif", action: "created", entityType: "document", entityName: "Created Employee Handbook 2026" },
+      { orgId, actorType: "worker", actorId: userId, actorName: "Ayse", action: "sent", entityType: "invoice", entityName: "Sent invoice INV-2026-002 to InnoSoft Solutions ($12,500)" },
     ];
 
     for (const a of activityLogsData) {
@@ -242,7 +270,8 @@ export async function POST(request: NextRequest) {
         invoices: invoices.length,
         projects: projects.length,
         tasks: taskCount,
-        emails: 0,
+        documents: documentsData.length,
+        emails: emailsData.length,
       },
     });
   } catch (err) {

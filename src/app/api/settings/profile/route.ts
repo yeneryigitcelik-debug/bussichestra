@@ -1,6 +1,8 @@
 import { getAuthenticatedContext } from "@/lib/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const { error, prisma, userId, orgId } = await getAuthenticatedContext();
   if (error) return error;

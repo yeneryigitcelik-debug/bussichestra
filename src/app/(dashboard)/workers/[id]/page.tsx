@@ -108,19 +108,42 @@ export default function WorkerDetailPage() {
     try {
       const res = await fetch("/api/workers");
       const data = await res.json();
-      const found = (data.workers || []).find((w: Worker) => w.id === workerId);
-      if (found) {
-        setWorker(found);
-        setName(found.name);
-        setRole(found.role);
-        setPersona(found.persona);
-        setDepartment(found.department_name || found.settings?.department_name || "Finance");
-        setModel(found.model || AI_MODELS.WORKER);
-        setTemperature(found.temperature ?? 0.7);
-        setMaxTokens(found.max_tokens || 4096);
-        setLanguage(found.language || "en");
-        setIsManager(found.is_manager || false);
-        setEnabledTools(found.tools || []);
+      const list = Array.isArray(data) ? data : (data.workers || []);
+      const raw = list.find((w: Record<string, unknown>) => w.id === workerId);
+      if (raw) {
+        // Normalize both Prisma camelCase (authenticated) and snake_case (demo) formats
+        const dept = (raw.department as { name?: string })?.name
+          || raw.department_name
+          || (raw.settings as Record<string, string>)?.department_name
+          || "Finance";
+        const normalized: Worker = {
+          id: String(raw.id),
+          name: String(raw.name || ""),
+          role: String(raw.role || ""),
+          persona: String(raw.persona || ""),
+          status: String(raw.status || "active"),
+          tools: Array.isArray(raw.tools) ? raw.tools : [],
+          is_manager: Boolean(raw.isManager ?? raw.is_manager),
+          model: String(raw.model || AI_MODELS.WORKER),
+          temperature: Number(raw.temperature ?? 0.7),
+          max_tokens: Number(raw.maxTokens ?? raw.max_tokens ?? 4096),
+          language: String(raw.language || "en"),
+          email: (raw.email as string) || null,
+          settings: (raw.settings as Record<string, string>) || {},
+          department_name: typeof dept === "string" ? dept : "Finance",
+          created_at: String(raw.createdAt || raw.created_at || ""),
+        };
+        setWorker(normalized);
+        setName(normalized.name);
+        setRole(normalized.role);
+        setPersona(normalized.persona);
+        setDepartment(normalized.department_name || "Finance");
+        setModel(normalized.model || AI_MODELS.WORKER);
+        setTemperature(normalized.temperature);
+        setMaxTokens(normalized.max_tokens);
+        setLanguage(normalized.language || "en");
+        setIsManager(normalized.is_manager);
+        setEnabledTools(normalized.tools || []);
       }
     } catch {} finally {
       setLoading(false);

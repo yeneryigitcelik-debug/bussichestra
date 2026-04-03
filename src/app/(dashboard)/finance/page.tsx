@@ -18,14 +18,6 @@ import { EmptyState } from "@/components/shared/EmptyState";
 
 /* ---------- Types ---------- */
 
-interface FinanceSummary {
-  revenue: number;
-  expenses: number;
-  netProfit: number;
-  outstandingInvoices: number;
-  outstandingCount: number;
-}
-
 interface Transaction {
   id: string;
   date: string;
@@ -37,17 +29,23 @@ interface Transaction {
 
 interface Invoice {
   id: string;
-  invoice_number: string;
-  customer_name: string;
+  invoiceNumber: string;
   total: number;
   status: "draft" | "sent" | "paid" | "overdue";
-  due_date: string;
+  dueDate: string | null;
+  customer?: { name: string } | null;
 }
 
 interface FinanceData {
-  summary: FinanceSummary;
-  transactions: Transaction[];
-  invoices: Invoice[];
+  revenue_this_month: number;
+  expenses_this_month: number;
+  net_profit: number;
+  outstanding_invoices: {
+    count: number;
+    total: number;
+  };
+  recent_transactions: Transaction[];
+  recent_invoices: Invoice[];
 }
 
 /* ---------- Helpers ---------- */
@@ -176,7 +174,7 @@ export default function FinancePage() {
         {
           title: "Revenue",
           subtitle: "This month",
-          value: formatCurrency(data.summary.revenue),
+          value: formatCurrency(data.revenue_this_month),
           icon: DollarSign,
           iconBg: "bg-emerald-500/10",
           iconColor: "text-emerald-400",
@@ -184,7 +182,7 @@ export default function FinancePage() {
         {
           title: "Expenses",
           subtitle: "This month",
-          value: formatCurrency(data.summary.expenses),
+          value: formatCurrency(data.expenses_this_month),
           icon: TrendingDown,
           iconBg: "bg-red-500/10",
           iconColor: "text-red-400",
@@ -192,15 +190,15 @@ export default function FinancePage() {
         {
           title: "Net Profit",
           subtitle: "This month",
-          value: formatCurrency(data.summary.netProfit),
+          value: formatCurrency(data.net_profit),
           icon: TrendingUp,
           iconBg: "bg-blue-500/10",
           iconColor: "text-blue-400",
         },
         {
           title: "Outstanding Invoices",
-          subtitle: `${data.summary.outstandingCount} invoice${data.summary.outstandingCount !== 1 ? "s" : ""} pending`,
-          value: formatCurrency(data.summary.outstandingInvoices),
+          subtitle: `${data.outstanding_invoices.count} invoice${data.outstanding_invoices.count !== 1 ? "s" : ""} pending`,
+          value: formatCurrency(data.outstanding_invoices.total),
           icon: FileText,
           iconBg: "bg-yellow-500/10",
           iconColor: "text-yellow-400",
@@ -288,7 +286,7 @@ export default function FinancePage() {
           {/* Recent Transactions */}
           {loading ? (
             <SkeletonTable rows={5} cols={5} />
-          ) : !data?.transactions.length ? (
+          ) : !data?.recent_transactions.length ? (
             <div className="rounded-xl border border-border bg-card">
               <div className="border-b border-border px-5 py-4">
                 <h2 className="text-base font-semibold">Recent Transactions</h2>
@@ -317,7 +315,7 @@ export default function FinancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.transactions.map((tx) => (
+                    {data.recent_transactions.map((tx) => (
                       <tr
                         key={tx.id}
                         className="border-b border-border/50 last:border-b-0"
@@ -351,8 +349,8 @@ export default function FinancePage() {
                           )}
                         >
                           {tx.type === "expense"
-                            ? `-${formatCurrency(tx.amount)}`
-                            : formatCurrency(tx.amount)}
+                            ? `-${formatCurrency(Number(tx.amount))}`
+                            : formatCurrency(Number(tx.amount))}
                         </td>
                       </tr>
                     ))}
@@ -365,7 +363,7 @@ export default function FinancePage() {
           {/* Invoices */}
           {loading ? (
             <SkeletonTable rows={5} cols={5} />
-          ) : !data?.invoices.length ? (
+          ) : !data?.recent_invoices.length ? (
             <div className="rounded-xl border border-border bg-card">
               <div className="border-b border-border px-5 py-4">
                 <h2 className="text-base font-semibold">Invoices</h2>
@@ -394,15 +392,15 @@ export default function FinancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.invoices.map((inv) => (
+                    {data.recent_invoices.map((inv) => (
                       <tr
                         key={inv.id}
                         className="border-b border-border/50 last:border-b-0"
                       >
                         <td className="whitespace-nowrap px-5 py-3 text-sm font-medium">
-                          {inv.invoice_number}
+                          {inv.invoiceNumber}
                         </td>
-                        <td className="px-5 py-3 text-sm">{inv.customer_name}</td>
+                        <td className="px-5 py-3 text-sm">{inv.customer?.name ?? "\u2014"}</td>
                         <td className="px-5 py-3 text-sm">
                           <span
                             className={cn(
@@ -414,10 +412,10 @@ export default function FinancePage() {
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-5 py-3 text-right text-sm font-medium">
-                          {formatCurrency(inv.total)}
+                          {formatCurrency(Number(inv.total))}
                         </td>
                         <td className="whitespace-nowrap px-5 py-3 text-right text-sm text-muted-foreground">
-                          {formatDate(inv.due_date)}
+                          {inv.dueDate ? formatDate(inv.dueDate) : "\u2014"}
                         </td>
                       </tr>
                     ))}

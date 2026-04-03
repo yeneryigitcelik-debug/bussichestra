@@ -34,16 +34,24 @@ export default function WorkerChatPage() {
       try {
         const res = await fetch("/api/workers");
         if (res.ok) {
-          const workers = await res.json();
-          const found = Array.isArray(workers)
-            ? workers.find((w: WorkerInfo) => w.id === workerId || w.id.toLowerCase() === workerId)
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : data.workers;
+          const found = Array.isArray(list)
+            ? list.find((w: WorkerInfo) => w.id === workerId || w.id.toLowerCase() === workerId)
             : null;
           if (found) {
+            // Prisma (authenticated) returns department as { name: string } via include
+            // Demo mode returns department_name as a flat string
+            const dept = (found.department as unknown as { name?: string })?.name
+              || found.department_name
+              || (found.settings as { department_name?: string })?.department_name
+              || found.department
+              || "General";
             setWorker({
               id: found.id,
               name: found.name,
               role: found.role,
-              department: (found.settings as { department_name?: string })?.department_name || found.department || "General",
+              department: typeof dept === "string" ? dept : "General",
               status: found.status || "active",
             });
             setLoading(false);

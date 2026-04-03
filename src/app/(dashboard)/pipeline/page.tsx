@@ -20,19 +20,19 @@ interface WorkerInfo {
 
 interface TaskItem {
   id: string;
-  worker_id?: string;
-  actor_id?: string;
-  actor_name?: string;
+  workerId?: string;
+  actorId?: string;
+  actorName?: string;
   action?: string;
-  entity_type?: string;
-  entity_name?: string;
+  entityType?: string;
+  entityName?: string;
   type: string;
   status: string;
   priority: string;
   input: Record<string, unknown>;
   result: unknown;
-  created_at: string;
-  completed_at: string | null;
+  createdAt: string;
+  completedAt: string | null;
 }
 
 const priorityColors: Record<string, string> = {
@@ -97,7 +97,7 @@ export default function PipelinePage() {
       // We'll get all recent tasks across workers
       if (tasksRes.ok) {
         const actData = await tasksRes.json();
-        setTasks(Array.isArray(actData) ? actData : actData.activities || []);
+        setTasks(Array.isArray(actData) ? actData : actData.logs || []);
       }
     } catch {
       // ignore
@@ -237,7 +237,7 @@ export default function PipelinePage() {
           ) : (
             <div className="space-y-2">
               {tasks.map((item, i) => {
-                const worker = workerMap[item.actor_id || item.worker_id || ""];
+                const worker = workerMap[item.actorId || item.workerId || ""];
                 return (
                   <div
                     key={item.id || i}
@@ -252,13 +252,13 @@ export default function PipelinePage() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm">
-                        <span className="font-semibold">{item.actor_name || "System"}</span>
+                        <span className="font-semibold">{item.actorName || "System"}</span>
                         {" "}
                         <span className="text-muted-foreground">
-                          {item.action} {item.entity_name}
+                          {item.action} {item.entityName}
                         </span>
                       </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{timeAgo(item.created_at)}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{timeAgo(item.createdAt)}</p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground/30" />
                   </div>

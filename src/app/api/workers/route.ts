@@ -3,6 +3,8 @@ import { getAuthenticatedContext } from "@/lib/api-utils";
 import { DEFAULT_WORKERS } from "@/lib/ai/prompts";
 import { AI_MODELS } from "@/lib/constants";
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/workers — list all workers
 export async function GET() {
   try {

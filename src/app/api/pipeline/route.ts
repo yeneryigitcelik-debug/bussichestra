@@ -7,6 +7,8 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedContext } from "@/lib/api-utils";
 import { classifyAndRoute, type PipelineEvent } from "@/lib/pipeline/router";
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     // ---- 1. Auth check ----

@@ -10,6 +10,8 @@ import type { AIWorker, Message } from "@/types/database";
 import type { Prisma } from "@prisma/client";
 import { AI_MODELS } from "@/lib/constants";
 
+export const dynamic = 'force-dynamic';
+
 const MAX_TOOL_ITERATIONS = 8;
 
 const TOOL_LABELS: Record<string, string> = {
